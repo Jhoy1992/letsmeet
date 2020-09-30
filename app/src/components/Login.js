@@ -1,18 +1,18 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { connect } from "react-redux";
 import { withStyles } from "@material-ui/core/styles";
+import { withRoomContext } from "../RoomContext";
 import PropTypes from "prop-types";
 import { useIntl, FormattedMessage } from "react-intl";
-import randomString from "random-string";
 import Dialog from "@material-ui/core/Dialog";
-import DialogContentText from "@material-ui/core/DialogContentText";
 import Typography from "@material-ui/core/Typography";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
-import CookieConsent from "react-cookie-consent";
 import MuiDialogTitle from "@material-ui/core/DialogTitle";
 import MuiDialogContent from "@material-ui/core/DialogContent";
 import MuiDialogActions from "@material-ui/core/DialogActions";
+
+import Notifications from "../components/Notifications/Notifications";
 
 const styles = (theme) => ({
   root: {
@@ -73,10 +73,13 @@ const styles = (theme) => ({
   green: {
     color: "rgba(0, 153, 0, 1)",
   },
+  red: {
+    color: "rgba(153, 0, 0, 1)",
+  },
 });
 
 const DialogTitle = withStyles(styles)((props) => {
-  const { children, classes, ...other } = props;
+  const { children, classes, myPicture, onLogin, loggedIn, ...other } = props;
 
   return (
     <MuiDialogTitle
@@ -91,6 +94,7 @@ const DialogTitle = withStyles(styles)((props) => {
           src={window.config.logoVertical}
         />
       )}
+
       <Typography className={classes.appTitle} variant="h5">
         {children}
       </Typography>
@@ -111,12 +115,30 @@ const DialogActions = withStyles((theme) => ({
   },
 }))(MuiDialogActions);
 
-const ChooseRoom = ({ classes }) => {
-  const [roomId, setRoomId] = useState(
-    randomString({ length: 8 }).toLowerCase()
-  );
+const Login = ({ roomClient, loggedIn, classes, location, history }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const intl = useIntl();
+  const roomId = new URLSearchParams(location.search).get("roomId");
+
+  const handleLogin = async () => {
+    const logged = await roomClient.login(username, password, roomId);
+
+    if (logged && roomId) {
+      history.push(`/${roomId}`);
+      return;
+    }
+
+    setUsername("");
+    setPassword("");
+  };
+
+  const handleCancel = () => {
+    if (roomId) {
+      history.push(`/${roomId}`);
+    }
+  };
 
   return (
     <div className={classes.root}>
@@ -130,68 +152,72 @@ const ChooseRoom = ({ classes }) => {
           {window.config.title ? window.config.title : "Reuniões"}
           <hr />
         </DialogTitle>
-        <DialogContent>
-          <DialogContentText gutterBottom>
-            <FormattedMessage
-              id="room.chooseRoom"
-              defaultMessage="Choose the name of the room you would like to join"
-            />
-          </DialogContentText>
 
+        <DialogContent>
           <TextField
-            id="roomId"
+            id="username"
             label={intl.formatMessage({
-              id: "label.roomName",
-              defaultMessage: "Room name",
+              id: "label.username",
+              defaultMessage: "Username",
             })}
-            value={roomId}
+            value={username}
             variant="outlined"
             margin="normal"
-            onChange={(event) => {
-              const { value } = event.target;
+            onChange={(event) => setUsername(event.target.value)}
+            fullWidth
+          />
 
-              setRoomId(value.toLowerCase());
-            }}
-            onBlur={() => {
-              if (roomId === "")
-                setRoomId(randomString({ length: 8 }).toLowerCase());
-            }}
+          <TextField
+            id="password"
+            label={intl.formatMessage({
+              id: "label.password",
+              defaultMessage: "Password",
+            })}
+            value={password}
+            variant="outlined"
+            margin="normal"
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
             fullWidth
           />
         </DialogContent>
 
         <DialogActions>
-          <Button
-            component={Link}
-            to={roomId}
-            variant="contained"
-            color="secondary"
-          >
-            <FormattedMessage
-              id="label.chooseRoomButton"
-              defaultMessage="Continue"
-            />
+          <Button onClick={handleCancel} variant="contained" color="primary">
+            <FormattedMessage id="login.cancel" defaultMessage="Cancel" />
+          </Button>
+
+          <Button onClick={handleLogin} variant="contained" color="secondary">
+            <FormattedMessage id="login.confirm" defaultMessage="Login" />
           </Button>
         </DialogActions>
-
-        <CookieConsent
-          buttonText={intl.formatMessage({
-            id: "room.consentUnderstand",
-            defaultMessage: "I understand",
-          })}
-        >
-          <FormattedMessage
-            id="room.cookieConsent"
-            defaultMessage="This website uses cookies to enhance the user experience"
-          />
-        </CookieConsent>
       </Dialog>
+
+      <Notifications />
     </div>
   );
 };
 
-ChooseRoom.propTypes = {
+Login.propTypes = {
+  roomClient: PropTypes.any.isRequired,
+  loggedIn: PropTypes.bool.isRequired,
   classes: PropTypes.object.isRequired,
+  location: PropTypes.object.isRequired,
+  history: PropTypes.object.isRequired,
 };
 
-export default withStyles(styles)(ChooseRoom);
+const mapStateToProps = (state) => {
+  return {
+    room: state.room,
+    loggedIn: state.me.loggedIn,
+    myPicture: state.me.picture,
+  };
+};
+
+export default withRoomContext(
+  connect(mapStateToProps, null, null, {
+    areStatesEqual: (next, prev) => {
+      return prev.me.loggedIn === next.me.loggedIn;
+    },
+  })(withStyles(styles)(Login))
+);

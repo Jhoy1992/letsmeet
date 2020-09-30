@@ -1,64 +1,47 @@
-import React, { useEffect, Suspense } from 'react';
-import { useParams } from 'react-router';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import JoinDialog from './JoinDialog';
-import LoadingView from './LoadingView';
-import { ReactLazyPreload } from './ReactLazyPreload';
+import React, { useEffect, Suspense } from "react";
+import { useParams } from "react-router";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import JoinDialog from "./JoinDialog";
+import LoadingView from "./LoadingView";
+import { ReactLazyPreload } from "./ReactLazyPreload";
 
-const Room = ReactLazyPreload(() => import(/* webpackChunkName: "room" */ './Room'));
+const Room = ReactLazyPreload(() =>
+  import(/* webpackChunkName: "room" */ "./Room")
+);
 
-const App = (props) =>
-{
-	const {
-		room
-	} = props;
+const App = (props) => {
+  const { room } = props;
 
-	const id = useParams().id.toLowerCase();
+  const id = useParams().id.toLowerCase();
 
-	useEffect(() =>
-	{
-		Room.preload();
+  useEffect(() => {
+    Room.preload();
 
-		return;
-	}, []);
+    return;
+  }, []);
 
-	if (!room.joined)
-	{
-		return (
-			<JoinDialog roomId={id} />
-		);
-	}
-	else
-	{
-		return (
-			<Suspense fallback={<LoadingView />}>
-				<Room />
-			</Suspense>
-		);
-	}
+  if (!room.joined) {
+    return <JoinDialog roomId={id} />;
+  } else {
+    return (
+      <Suspense fallback={<LoadingView />}>
+        <Room />
+      </Suspense>
+    );
+  }
 };
 
-App.propTypes =
-{
-	room : PropTypes.object.isRequired
+App.propTypes = {
+  room: PropTypes.object.isRequired,
 };
 
-const mapStateToProps = (state) =>
-	({
-		room : state.room
-	});
+const mapStateToProps = (state) => ({
+  room: state.room,
+});
 
-export default connect(
-	mapStateToProps,
-	null,
-	null,
-	{
-		areStatesEqual : (next, prev) =>
-		{
-			return (
-				prev.room === next.room
-			);
-		}
-	}
-)(App);
+export default connect(mapStateToProps, null, null, {
+  areStatesEqual: (next, prev) => {
+    return prev.room === next.room;
+  },
+})(App);
